@@ -1,0 +1,11 @@
+services:
+  reservation-api:
+    build: .
+    image: reservation-api:local
+    environment:
+      APP_VERSION: "1.7.0"
+      LOG_LEVEL: "INFO"
+      UPSTREAM_DELAY_MS: "120"
+      UPSTREAM_TIMEOUT_MS: "1000"
+    ports:
+      - "8000:8000"
