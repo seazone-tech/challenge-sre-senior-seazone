@@ -28,6 +28,11 @@ REQUEST_LATENCY = Histogram(
 )
 
 
+def _route_path(request: Request) -> str:
+    route = request.scope.get("route")
+    return getattr(route, "path", "__unmatched__")
+
+
 def _env_int(name: str, default: int) -> int:
     try:
         return int(os.getenv(name, str(default)))
@@ -38,7 +43,6 @@ def _env_int(name: str, default: int) -> int:
 
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next: Callable) -> Response:
-    path = request.url.path
     method = request.method
     started_at = time.monotonic()
     status = "500"
@@ -48,6 +52,7 @@ async def metrics_middleware(request: Request, call_next: Callable) -> Response:
         status = str(response.status_code)
         return response
     finally:
+        path = _route_path(request)
         REQUEST_COUNT.labels(method=method, path=path, status=status).inc()
         REQUEST_LATENCY.labels(method=method, path=path).observe(time.monotonic() - started_at)
 
