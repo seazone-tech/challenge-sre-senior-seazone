@@ -1,0 +1,7 @@
+{"ts":"2026-06-10T12:42:13Z","level":"INFO","service":"reservation-api","version":"1.7.0","msg":"starting reservation api","pod":"reservation-api-65f9d8b7c9-q9j2l"}
+{"ts":"2026-06-10T12:46:20Z","level":"ERROR","service":"reservation-api","version":"1.7.0","msg":"reservation lookup timed out","reservation_id":"rsv_1042","upstream_delay_ms":900,"upstream_timeout_ms":800}
+{"ts":"2026-06-10T12:47:03Z","level":"ERROR","service":"reservation-api","version":"1.7.0","msg":"reservation lookup timed out","reservation_id":"rsv_1043","upstream_delay_ms":900,"upstream_timeout_ms":800}
+{"ts":"2026-06-10T12:48:51Z","level":"WARNING","service":"reservation-api","version":"1.7.0","msg":"health endpoint slower than probe timeout","health_latency_ms":1200,"probe_timeout_ms":1000}
+{"ts":"2026-06-10T12:51:07Z","level":"INFO","service":"reservation-api","version":"1.7.0","msg":"received termination signal","in_flight_requests":14}
+{"ts":"2026-06-10T12:51:08Z","level":"ERROR","service":"reservation-api","version":"1.7.0","msg":"request interrupted during shutdown","reservation_id":"rsv_1051"}
+{"ts":"2026-06-10T12:52:14Z","level":"INFO","service":"reservation-api","version":"1.7.0","msg":"starting reservation api","pod":"reservation-api-65f9d8b7c9-q9j2l"}

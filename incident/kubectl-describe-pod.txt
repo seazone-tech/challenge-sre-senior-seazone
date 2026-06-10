@@ -1,0 +1,30 @@
+Name:             reservation-api-65f9d8b7c9-q9j2l
+Namespace:        seazone-challenge
+Status:           Running
+Controlled By:    ReplicaSet/reservation-api-65f9d8b7c9
+Containers:
+  reservation-api:
+    Image:          reservation-api:local
+    Port:           8000/TCP
+    Restart Count:  7
+    Environment:
+      APP_VERSION:           1.7.0
+      HEALTH_LATENCY_MS:     1200
+      UPSTREAM_DELAY_MS:     900
+      UPSTREAM_TIMEOUT_MS:   800
+    Limits:
+      <none>
+    Requests:
+      <none>
+    Liveness:   http-get http://:http/healthz delay=2s timeout=1s period=5s #success=1 #failure=1
+    Readiness:  http-get http://:http/healthz delay=1s timeout=1s period=5s #success=1 #failure=1
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             False
+  ContainersReady   False
+  PodScheduled      True
+Events:
+  Warning  Unhealthy  Liveness probe failed: context deadline exceeded
+  Warning  Unhealthy  Readiness probe failed: context deadline exceeded
+  Normal   Killing    Container reservation-api failed liveness probe, will be restarted

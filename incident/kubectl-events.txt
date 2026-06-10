@@ -1,0 +1,8 @@
+LAST SEEN   TYPE      REASON      OBJECT                                  MESSAGE
+18m         Normal    Pulled      pod/reservation-api-65f9d8b7c9-q9j2l     Container image "reservation-api:local" already present on machine
+18m         Normal    Created     pod/reservation-api-65f9d8b7c9-q9j2l     Created container reservation-api
+18m         Normal    Started     pod/reservation-api-65f9d8b7c9-q9j2l     Started container reservation-api
+16m         Warning   Unhealthy   pod/reservation-api-65f9d8b7c9-q9j2l     Liveness probe failed: Get "http://10.244.0.18:8000/healthz": context deadline exceeded
+16m         Warning   Unhealthy   pod/reservation-api-65f9d8b7c9-q9j2l     Readiness probe failed: Get "http://10.244.0.18:8000/healthz": context deadline exceeded
+15m         Normal    Killing     pod/reservation-api-65f9d8b7c9-q9j2l     Container reservation-api failed liveness probe, will be restarted
+13m         Warning   FailedGetResourceMetric horizontalpodautoscaler/reservation-api failed to get cpu utilization: missing request for cpu
