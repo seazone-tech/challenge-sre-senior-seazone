@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reservation-api
+  namespace: seazone-challenge
+  labels:
+    app.kubernetes.io/name: reservation-api
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: reservation-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: reservation-api
+    spec:
+      containers:
+        - name: reservation-api
+          image: reservation-api:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: APP_VERSION
+              value: "1.7.0"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: HEALTH_LATENCY_MS
+              value: "1200"
+            - name: UPSTREAM_DELAY_MS
+              value: "900"
+            - name: UPSTREAM_TIMEOUT_MS
+              value: "800"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 1
+            failureThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 1
+            periodSeconds: 5
+            timeoutSeconds: 1
+            failureThreshold: 1
