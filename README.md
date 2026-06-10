@@ -11,6 +11,7 @@ Use um time-box de 8 a 12 horas focadas. Nao e esperado resolver todos os proble
 ## Restricoes Importantes
 
 - Nenhuma credencial AWS ou Seazone sera fornecida.
+- Nenhum acesso a contas AWS sera fornecido.
 - Nao execute `terraform apply`.
 - Nao crie recursos cloud reais.
 - Nao use dados reais, credenciais ou informacoes privadas em ferramentas externas.
@@ -91,6 +92,8 @@ terraform validate
 ```
 
 Exemplo com kind:
+
+O estado inicial dos manifests Kubernetes e intencionalmente instavel. Pods sem Ready ou reinicios no primeiro teste fazem parte do material de diagnostico.
 
 ```bash
 make kind-create
