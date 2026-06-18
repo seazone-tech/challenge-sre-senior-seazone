@@ -39,3 +39,7 @@ endureci o Terraform-alvo e adicionei diferenciais (CI, k6, runbook, IA para toi
 ## Como validar
 
 Ver a seção **Como Validar** do [`SOLUTION.md`](SOLUTION.md). Evidências reais em [`evidencias/`](evidencias/) e [`docs/evidencias-testes.md`](docs/evidencias-testes.md).
+
+## Referência
+
+Prior art do padrão GitOps + ArgoCD + Terraform proposto na seção AWS/EKS: lab pessoal de Platform Engineering [chris-platform](https://github.com/chris-amaral/chris-platform).

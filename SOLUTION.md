@@ -167,6 +167,11 @@ Como eu levaria isto para produção (parcialmente já no `infra/terraform`, val
 > com `0.0.0.0/0`, sem node group (cluster sem worker), sem IRSA, sem KMS e sem logs de control
 > plane. Mantive a arquitetura-alvo e endereçei esses pontos, deixando claros os trade-offs.
 
+**Prior art (referência):** o padrão de GitOps com ArgoCD + Terraform descrito como evolução
+natural acima eu mantenho implementado num lab pessoal de Platform Engineering —
+[chris-platform](https://github.com/chris-amaral/chris-platform) (Terraform + Kubernetes +
+ArgoCD + GitOps) — útil como exemplo concreto dessa arquitetura na prática.
+
 ---
 
 ## AI Para Reducao De Toil
