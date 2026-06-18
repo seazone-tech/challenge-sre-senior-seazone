@@ -55,7 +55,8 @@ jobs:
           tar xf kubeconform.tar.gz && sudo mv kubeconform /usr/local/bin/
       - name: Validar schema dos manifests
         # -ignore-missing-schemas: CRDs (ServiceMonitor/PrometheusRule) nao tem schema publico padrao.
-        run: kubeconform -strict -ignore-missing-schemas -summary k8s/ slo/
+        # Valida apenas manifestos YAML; slo/ tem tambem .json (dashboard) e .md, que nao sao recursos k8s.
+        run: kubeconform -strict -ignore-missing-schemas -summary k8s/ slo/prometheus-rules.yaml slo/servicemonitor.yaml
 
   terraform-validate:
     name: Terraform - fmt + validate (sem apply)
