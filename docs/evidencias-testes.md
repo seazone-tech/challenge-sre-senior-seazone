@@ -198,8 +198,10 @@ e que virariam gate bloqueante em produção. O hardening efetivo já aplicado: 
 (runAsNonRoot, readOnlyRootFilesystem, drop ALL), KMS, IRSA, endpoint privado e logs de
 control plane.
 
-> Evidência no GitHub: aba **Actions** do fork mostra a run do `CI - reservation-api` verde
-> para a branch `fix/reservation-api-reliability`.
+> **Evidência no GitHub Actions (fork):** a run do `CI - reservation-api` passou verde em
+> todos os 5 jobs (pytest, docker build, kubeconform, terraform validate, **Trivy + Checkov**)
+> na branch `fix/reservation-api-reliability`. O pipeline roda automaticamente em
+> `main`/`feature/**`/`fix/**`. Ver aba **Actions** do fork.
 
 ---
 
