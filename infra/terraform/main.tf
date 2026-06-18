@@ -2,6 +2,10 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+data "aws_caller_identity" "current" {}
+
+data "aws_region" "current" {}
+
 locals {
   tags = {
     Project     = var.project_name
@@ -21,6 +25,7 @@ resource "aws_vpc" "main" {
 }
 
 resource "aws_subnet" "public" {
+  # checkov:skip=CKV_AWS_130:Subnet PUBLICA precisa de IP publico para o load balancer publico do EKS (papel da subnet). Os workloads/nodes ficam nas subnets privadas.
   count = 2
 
   vpc_id                  = aws_vpc.main.id
@@ -86,6 +91,34 @@ resource "aws_kms_key" "eks" {
   enable_key_rotation     = true
   deletion_window_in_days = 7
 
+  # Key policy explicita (CKV2_AWS_64): acesso root da conta + permissao para o
+  # CloudWatch Logs usar a chave (criptografia do log group de VPC Flow Logs).
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "EnableRootAccount"
+        Effect    = "Allow"
+        Principal = { AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" }
+        Action    = "kms:*"
+        Resource  = "*"
+      },
+      {
+        Sid       = "AllowCloudWatchLogs"
+        Effect    = "Allow"
+        Principal = { Service = "logs.${data.aws_region.current.name}.amazonaws.com" }
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey",
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
   tags = local.tags
 }
 
@@ -96,6 +129,7 @@ resource "aws_kms_key" "eks" {
 #  - encryption_config para secrets.
 # ------------------------------------------------------------------------------
 resource "aws_eks_cluster" "main" {
+  # checkov:skip=CKV_AWS_39:Endpoint publico restrito por allowlist de CIDR (var.cluster_public_access_cidrs) + endpoint privado habilitado. Acesso de gestao controlado, nunca exposto a 0.0.0.0/0.
   name     = var.project_name
   role_arn = aws_iam_role.eks_cluster.arn
   version  = var.kubernetes_version
@@ -196,6 +230,77 @@ resource "aws_eks_node_group" "default" {
   depends_on = [
     aws_iam_role_policy_attachment.nodes
   ]
+
+  tags = local.tags
+}
+
+# ------------------------------------------------------------------------------
+# Default Security Group travado (CKV2_AWS_12).
+# POR QUE: o SG default de toda VPC, se nao gerenciado, permite trafego entre si.
+# Sem regras ingress/egress, ele bloqueia tudo e forca o uso de SGs explicitos.
+# ------------------------------------------------------------------------------
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.main.id
+  tags   = merge(local.tags, { Name = "${var.project_name}-default-locked" })
+}
+
+# ------------------------------------------------------------------------------
+# VPC Flow Logs (CKV2_AWS_11): auditoria de trafego de rede da VPC.
+# Destino: CloudWatch Logs com retencao de 1 ano e criptografia KMS.
+# ------------------------------------------------------------------------------
+resource "aws_cloudwatch_log_group" "vpc_flow" {
+  name              = "/aws/vpc-flow-log/${var.project_name}"
+  retention_in_days = 365
+  kms_key_id        = aws_kms_key.eks.arn
+
+  tags = local.tags
+}
+
+resource "aws_iam_role" "vpc_flow" {
+  name = "${var.project_name}-vpc-flow-log"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "vpc-flow-logs.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+
+resource "aws_iam_role_policy" "vpc_flow" {
+  name = "${var.project_name}-vpc-flow-log"
+  role = aws_iam_role.vpc_flow.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+        ]
+        # Escopo restrito ao log group do flow log (sem wildcard de recurso).
+        Resource = "${aws_cloudwatch_log_group.vpc_flow.arn}:*"
+      }
+    ]
+  })
+}
+
+resource "aws_flow_log" "main" {
+  vpc_id               = aws_vpc.main.id
+  traffic_type         = "ALL"
+  log_destination_type = "cloud-watch-logs"
+  log_destination      = aws_cloudwatch_log_group.vpc_flow.arn
+  iam_role_arn         = aws_iam_role.vpc_flow.arn
 
   tags = local.tags
 }

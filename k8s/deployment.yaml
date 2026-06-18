@@ -6,6 +6,10 @@ metadata:
   labels:
     app.kubernetes.io/name: reservation-api
     app.kubernetes.io/part-of: seazone-platform
+  annotations:
+    # Skips do Checkov ACEITOS com justificativa (no K8s o Checkov usa annotation, nao comentario).
+    checkov.io/skip1: CKV_K8S_15=imagePullPolicy IfNotPresent e necessario no kind (imagem carregada localmente, sem registry); em producao usar Always/digest.
+    checkov.io/skip2: CKV_K8S_43=imagem local do desafio (reservation-api:local) nao possui digest; em producao seria fixada por digest do registry.
 spec:
   # POR QUE 3: o incidente caiu de 2->1 replica (SPOF). 3 replicas toleram a perda
   # de 1 pod (manutencao/rollout) e ainda respeitam o PodDisruptionBudget (minAvailable: 2).
@@ -31,6 +35,9 @@ spec:
         prometheus.io/path: /metrics
         prometheus.io/port: "8000"
     spec:
+      # POR QUE false (CKV_K8S_38): a aplicacao nao chama a API do Kubernetes, entao nao ha
+      # motivo para montar o token da service account no pod (reduz superficie de ataque).
+      automountServiceAccountToken: false
       # POR QUE 30s + preStop: os logs do incidente mostram "request interrupted during
       # shutdown" com 14 requests in-flight. O preStop da tempo do endpoint sair dos
       # endpoints do Service (kube-proxy/ELB) antes do uvicorn receber SIGTERM = drain limpo.
@@ -53,6 +60,7 @@ spec:
               app.kubernetes.io/name: reservation-api
       containers:
         - name: reservation-api
+          # imagePullPolicy IfNotPresent: imagem local no kind (skips CKV_K8S_15/43 em metadata.annotations).
           image: reservation-api:local
           imagePullPolicy: IfNotPresent
           ports:

@@ -1,0 +1,15 @@
+# Achados ACEITOS com justificativa (trade-offs conscientes da arquitetura-alvo).
+# Cada item foi avaliado; nao sao gaps, sao decisoes de design documentadas.
+
+# AWS-0040: "Public cluster access is enabled."
+# Aceito: o endpoint publico do EKS fica restrito por allowlist de CIDR
+# (var.cluster_public_access_cidrs) E o endpoint privado esta habilitado. O acesso de
+# gestao e controlado, nunca exposto a 0.0.0.0/0. Fechar 100% inviabiliza a operacao
+# no cenario do desafio. Equivalente ao CKV_AWS_39 (Checkov).
+AWS-0040
+
+# AWS-0164: "Subnet associates public IP address."
+# Aceito: sao as subnets PUBLICAS, que precisam de IP publico para o load balancer
+# publico do EKS (papel da subnet). Os workloads/nodes ficam nas subnets privadas.
+# Equivalente ao CKV_AWS_130 (Checkov).
+AWS-0164

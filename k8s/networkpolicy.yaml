@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: reservation-api
+  namespace: seazone-challenge
+  labels:
+    app.kubernetes.io/name: reservation-api
+spec:
+  # POR QUE (CKV2_K8S_6): por padrao, todo pod aceita trafego de qualquer origem.
+  # Esta policy aplica least-privilege de rede ao reservation-api: so entra trafego
+  # na porta 8000 e so sai DNS + HTTPS. Defesa em profundidade (micro-segmentacao).
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: reservation-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Trafego HTTP da aplicacao (Service/Ingress) na porta do container.
+    - ports:
+        - port: 8000
+          protocol: TCP
+  egress:
+    # DNS (resolucao de nomes no cluster).
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Saida HTTPS para dependencias externas (ex.: upstream de reservas).
+    - ports:
+        - port: 443
+          protocol: TCP
