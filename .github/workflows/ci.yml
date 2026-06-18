@@ -1,0 +1,109 @@
+name: CI - reservation-api
+
+# POR QUE este pipeline: o incidente nasceu de um deploy que passou sem nenhuma barreira
+# de qualidade (probe quebrada, env invertida, sem requests/limits). Cada job abaixo e
+# uma barreira que teria pego o 1.7.0 ANTES de chegar em producao.
+#
+# Restricoes do desafio respeitadas: NAO roda `terraform apply`, NAO cria recursos AWS,
+# NAO usa credenciais. So validacao estatica + testes locais.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write # upload de SARIF (Trivy/Checkov) no Code Scanning
+
+jobs:
+  app-tests:
+    name: App - lint e testes (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependencias
+        run: pip install -r app/requirements.txt
+      - name: Pytest
+        run: PYTHONPATH=. pytest app/tests -q
+
+  docker-build:
+    name: Docker - build da imagem
+    runs-on: ubuntu-latest
+    needs: app-tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker build -t reservation-api:ci .
+      # Teria pego, p.ex., uma imagem que nao sobe. Mantemos local (sem push p/ registry).
+
+  k8s-validate:
+    name: K8s - lint dos manifests (kubeconform)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar kubeconform
+        run: |
+          curl -sSLo kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+          tar xf kubeconform.tar.gz && sudo mv kubeconform /usr/local/bin/
+      - name: Validar schema dos manifests
+        # -ignore-missing-schemas: CRDs (ServiceMonitor/PrometheusRule) nao tem schema publico padrao.
+        run: kubeconform -strict -ignore-missing-schemas -summary k8s/ slo/
+
+  terraform-validate:
+    name: Terraform - fmt + validate (sem apply)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.5"
+      - name: terraform fmt
+        run: terraform -chdir=infra/terraform fmt -check -recursive
+      - name: terraform init (backend=false)
+        run: terraform -chdir=infra/terraform init -backend=false
+      - name: terraform validate
+        run: terraform -chdir=infra/terraform validate
+      - name: tflint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+      - run: tflint --chdir=infra/terraform --init && tflint --chdir=infra/terraform
+
+  security-scan:
+    name: Security - Trivy + Checkov (IaC e manifests)
+    runs-on: ubuntu-latest
+    needs: docker-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy - scan de config (Terraform + K8s)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          # exit-code 0: no desafio, scan e informativo (gate viraria bloqueante em prod).
+          exit-code: "0"
+          format: sarif
+          output: trivy-config.sarif
+
+      - name: Upload SARIF do Trivy
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
+
+      - name: Checkov - IaC scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          quiet: true
+          soft_fail: true # informativo no desafio; bloqueante em prod
+          framework: terraform,kubernetes
