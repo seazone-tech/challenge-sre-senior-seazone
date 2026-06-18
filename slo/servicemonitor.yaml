@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: reservation-api
+  namespace: seazone-challenge
+  labels:
+    app.kubernetes.io/name: reservation-api
+    # Ajustar ao label que o seu Prometheus Operator usa para descobrir ServiceMonitors
+    # (ex.: release: kube-prometheus-stack).
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: reservation-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - seazone-challenge
