@@ -6,7 +6,7 @@ Solução do desafio técnico de Especialista de SRE. Resposta principal: [`SOLU
 
 O deploy `1.7.0` introduziu **5 regressões simultâneas**. Corrigi o caminho de
 confiabilidade no Kubernetes, defini SLO com error budget + alertas por burn rate,
-endureci o Terraform-alvo e adicionei diferenciais (CI, k6, runbook, IA para toil).
+fiz melhorias no Terraform e adicionei alguns diferenciais (CI, k6, runbook, IA para toil).
 
 ## Causa raiz (resumo)
 
