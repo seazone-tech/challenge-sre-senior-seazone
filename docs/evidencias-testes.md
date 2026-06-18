@@ -172,6 +172,37 @@ de qualquer envio.
 
 ---
 
+## 9. Hardening — Trivy + Checkov + tflint
+
+Executados localmente (pré-voo) e também no pipeline `ci.yml` (job `security-scan`),
+que roda no GitHub Actions do fork em `main`/`feature/**`/`fix/**`.
+
+```text
+$ tflint --chdir=infra/terraform
+(sem issues — exit 0)
+
+$ trivy config .
+terraform: Tests 27 (SUCCESSES 26, FAILURES 1 LOW)
+terraform: Tests 99 (SUCCESSES 98, FAILURES 1)
+config:    Tests 4  (FAILURES: 1 MEDIUM, 2 HIGH, 1 CRITICAL)   # informativo (exit 0)
+
+$ checkov -d . --framework terraform,kubernetes
+terraform:  Passed 29, Failed 6
+kubernetes: Passed 86, Failed 4
+```
+
+Os findings restantes são **trade-offs conscientes da arquitetura-alvo** (ex.: `AWS-0164`
+subnet pública com IP público — necessária para o LB público do EKS) e recomendações de
+defesa em profundidade, mantidos como **informativos** no desafio (`exit-code 0` / `soft_fail`)
+e que virariam gate bloqueante em produção. O hardening efetivo já aplicado: `securityContext`
+(runAsNonRoot, readOnlyRootFilesystem, drop ALL), KMS, IRSA, endpoint privado e logs de
+control plane.
+
+> Evidência no GitHub: aba **Actions** do fork mostra a run do `CI - reservation-api` verde
+> para a branch `fix/reservation-api-reliability`.
+
+---
+
 ## Limpeza do ambiente
 
 ```bash

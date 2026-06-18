@@ -9,9 +9,12 @@ name: CI - reservation-api
 
 on:
   push:
-    branches: [main]
+    # Roda em main e em qualquer branch de trabalho (feature/** e fix/**),
+    # para que a validacao e o hardening rodem ANTES do merge/PR.
+    branches: [main, "feature/**", "fix/**"]
   pull_request:
     branches: [main]
+  workflow_dispatch: {}
 
 permissions:
   contents: read
