@@ -1,5 +1,7 @@
 # Solucao Do Desafio — reservation-api
 
+[![CI](https://github.com/chris-amaral/challenge-sre-senior-seazone/actions/workflows/ci.yml/badge.svg?branch=fix/reservation-api-reliability)](https://github.com/chris-amaral/challenge-sre-senior-seazone/actions/workflows/ci.yml)
+
 > Autor: Christopher Amaral | Vaga: Especialista de SRE — Seazone
 > Princípio que guia este documento: **DETECTAR → MITIGAR → RESOLVER → DOCUMENTAR**.
 

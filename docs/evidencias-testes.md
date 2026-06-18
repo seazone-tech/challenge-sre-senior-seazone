@@ -177,26 +177,33 @@ de qualquer envio.
 Executados localmente (pré-voo) e também no pipeline `ci.yml` (job `security-scan`),
 que roda no GitHub Actions do fork em `main`/`feature/**`/`fix/**`.
 
+Os achados foram **tratados** (não apenas reportados): cada um foi **corrigido** ou
+**aceito com justificativa escrita** (Checkov `skip`/annotation e `.trivyignore`).
+
 ```text
 $ tflint --chdir=infra/terraform
 (sem issues — exit 0)
 
-$ trivy config .
-terraform: Tests 27 (SUCCESSES 26, FAILURES 1 LOW)
-terraform: Tests 99 (SUCCESSES 98, FAILURES 1)
-config:    Tests 4  (FAILURES: 1 MEDIUM, 2 HIGH, 1 CRITICAL)   # informativo (exit 0)
-
 $ checkov -d . --framework terraform,kubernetes
-terraform:  Passed 29, Failed 6
-kubernetes: Passed 86, Failed 4
+terraform:  Passed 49, Failed 0, Skipped 3
+kubernetes: Passed 88, Failed 0, Skipped 2
+
+$ trivy config --severity HIGH,CRITICAL .
+(0 findings — aceites documentados no .trivyignore)
 ```
 
-Os findings restantes são **trade-offs conscientes da arquitetura-alvo** (ex.: `AWS-0164`
-subnet pública com IP público — necessária para o LB público do EKS) e recomendações de
-defesa em profundidade, mantidos como **informativos** no desafio (`exit-code 0` / `soft_fail`)
-e que virariam gate bloqueante em produção. O hardening efetivo já aplicado: `securityContext`
-(runAsNonRoot, readOnlyRootFilesystem, drop ALL), KMS, IRSA, endpoint privado e logs de
-control plane.
+**Corrigidos (ganhos reais):** VPC Flow Logs (`CKV2_AWS_11`), default SG travado
+(`CKV2_AWS_12`), KMS key policy (`CKV2_AWS_64`), `automountServiceAccountToken: false`
+(`CKV_K8S_38`) e NetworkPolicy default-deny (`CKV2_K8S_6`).
+
+**Aceitos com justificativa (trade-offs da arquitetura-alvo):** endpoint público do EKS
+restrito por CIDR (`CKV_AWS_39` / `AWS-0040`), subnets públicas com IP para o LB público
+(`CKV_AWS_130` / `AWS-0164`), e `imagePullPolicy`/digest da imagem local do kind
+(`CKV_K8S_15` / `CKV_K8S_43`).
+
+Hardening efetivo aplicado nos manifests/IaC: `securityContext` (runAsNonRoot,
+readOnlyRootFilesystem, drop ALL), KMS, IRSA, endpoint privado, logs de control plane,
+flow logs, default SG travado e NetworkPolicy.
 
 > **Evidência no GitHub Actions (fork):** a run do `CI - reservation-api` passou verde em
 > todos os 5 jobs (pytest, docker build, kubeconform, terraform validate, **Trivy + Checkov**)
