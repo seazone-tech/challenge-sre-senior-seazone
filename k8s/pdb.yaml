@@ -1,0 +1,17 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: reservation-api
+  namespace: seazone-challenge
+  labels:
+    app.kubernetes.io/name: reservation-api
+spec:
+  # POR QUE minAvailable 2: garante que disrupcoes VOLUNTARIAS (drain de node, upgrade
+  # do cluster, rollout) nunca deixem o servico abaixo de 2 replicas prontas. Com
+  # replicas:3 + maxUnavailable:0 no rollout, isso fecha o caminho de disponibilidade:
+  # nem operacao planejada nem deploy derrubam o servico. (PDB nao protege contra
+  # disrupcoes involuntarias como crash de node — isso fica com replicas + topology spread.)
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: reservation-api

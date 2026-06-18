@@ -10,12 +10,39 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: reservation-api
-  minReplicas: 1
-  maxReplicas: 2
+  # POR QUE min 2: o HPA nunca deve permitir 1 replica (SPOF) — alinhado ao PDB.
+  # POR QUE max 6: cabecalho de burst razoavel para o footprint do servico sem
+  # estourar custo; em EKS real seria revisado com dados de carga (k6 + producao).
+  minReplicas: 2
+  maxReplicas: 6
   metrics:
+    # POR QUE 70% (e nao 90%): 90% so escala quando o pod ja esta saturado, tarde demais
+    # sob pico. 70% deixa folga para absorver rampa de trafego antes da degradacao.
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 70
+    # Sinal secundario por memoria evita scale-down indevido em workloads com cache.
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  # POR QUE behavior: evita flapping. Sobe rapido (reage a pico em 30s) e desce devagar
+  # (estabiliza 5 min) para nao remover capacidade no meio de uma oscilacao.
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60

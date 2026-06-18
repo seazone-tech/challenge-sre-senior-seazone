@@ -5,13 +5,19 @@ metadata:
   namespace: seazone-challenge
   labels:
     app.kubernetes.io/name: reservation-api
+    app.kubernetes.io/part-of: seazone-platform
 spec:
-  replicas: 1
+  # POR QUE 3: o incidente caiu de 2->1 replica (SPOF). 3 replicas toleram a perda
+  # de 1 pod (manutencao/rollout) e ainda respeitam o PodDisruptionBudget (minAvailable: 2).
+  replicas: 3
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 1
-      maxSurge: 0
+      # POR QUE 0/1: o deploy 1.7.0 usava maxUnavailable:1/maxSurge:0, que derruba o
+      # unico pod durante o rollout = downtime. maxUnavailable:0 garante zero-downtime;
+      # maxSurge:1 sobe o pod novo ANTES de remover o antigo.
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: reservation-api
@@ -19,7 +25,32 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: reservation-api
+      annotations:
+        # Scrape direto caso nao haja Prometheus Operator (alternativa ao ServiceMonitor).
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8000"
     spec:
+      # POR QUE 30s + preStop: os logs do incidente mostram "request interrupted during
+      # shutdown" com 14 requests in-flight. O preStop da tempo do endpoint sair dos
+      # endpoints do Service (kube-proxy/ELB) antes do uvicorn receber SIGTERM = drain limpo.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534 # nobody, alinhado ao USER nobody do Dockerfile
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      # POR QUE topology spread: distribui as replicas entre nodes/zonas para que a
+      # perda de 1 node nao leve o servico junto. ScheduleAnyway nao bloqueia o schedule
+      # em cluster single-node (kind), mas em EKS multi-AZ vira hard guarantee de espalhamento.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: reservation-api
       containers:
         - name: reservation-api
           image: reservation-api:local
@@ -29,28 +60,68 @@ spec:
               containerPort: 8000
           env:
             - name: APP_VERSION
-              value: "1.7.0"
+              value: "1.7.1"
             - name: LOG_LEVEL
               value: "INFO"
+            # POR QUE 0: HEALTH_LATENCY_MS=1200 fazia /healthz exceder o timeout da probe
+            # (1s) e o pod era morto. 0 = health responde imediatamente.
             - name: HEALTH_LATENCY_MS
-              value: "1200"
+              value: "0"
+            # POR QUE delay < timeout: 900 > 800 fazia 100% dos /reservations darem 504.
+            # Restaurado para o baseline saudavel (120 < 1000).
             - name: UPSTREAM_DELAY_MS
-              value: "900"
+              value: "120"
             - name: UPSTREAM_TIMEOUT_MS
-              value: "800"
+              value: "1000"
+          # POR QUE requests/limits: estavam <none>, o que (a) quebrava o HPA
+          # ("missing request for cpu") e (b) deixava o pod sem QoS/protecao.
+          # Valores dimensionados para uvicorn single-worker FastAPI: baixo footprint,
+          # com headroom de burst no limit. Request = piso garantido p/ schedule e HPA.
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          # POR QUE startupProbe: isola o tempo de boot das probes de runtime. Enquanto
+          # nao iniciar, liveness/readiness nao rodam -> evita kill prematuro em cold start.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 10 # ate 30s para subir
+          # POR QUE liveness tolerante: o 1.7.0 usava timeout=1s/failureThreshold=1 ->
+          # 1 unica resposta lenta = restart. Agora timeout 2s e 3 falhas consecutivas
+          # antes de reiniciar, evitando restart loop por blip transitorio.
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
-            initialDelaySeconds: 2
-            periodSeconds: 5
-            timeoutSeconds: 1
-            failureThreshold: 1
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # POR QUE readiness em /readyz: o 1.7.0 apontou readiness para /healthz (lenta).
+          # /readyz e barata e reflete prontidao real -> readiness volta a sinalizar
+          # corretamente quando tirar/por o pod do balanceamento.
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: http
-            initialDelaySeconds: 1
             periodSeconds: 5
-            timeoutSeconds: 1
-            failureThreshold: 1
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # POR QUE preStop: aguarda o endpoint ser removido do Service antes do SIGTERM,
+          # drenando conexoes in-flight sem 5xx (ver logs de shutdown do incidente).
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sleep", "5"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
