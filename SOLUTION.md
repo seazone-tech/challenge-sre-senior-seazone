@@ -295,3 +295,9 @@ após a correção (`Running`, `0` restarts, HPA com métricas).
 | `/reservations` | 504 (delay>timeout) | 200 |
 | 5xx sob carga | 8,2% | **0,00%** |
 | p95 | 3100ms | **126,94ms** |
+
+**Figura 6 — Pipeline de CI verde no GitHub Actions (fork):** os 5 jobs passam
+(pytest, docker build, kubeconform, terraform validate e **Trivy + Checkov**). O pipeline
+roda automaticamente em `main`/`feature/**`/`fix/**`.
+
+![CI verde no GitHub Actions](./evidencias/06-ci-pipeline-verde.png)
