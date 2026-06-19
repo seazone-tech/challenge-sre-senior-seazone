@@ -6,12 +6,12 @@ metadata:
   labels:
     app.kubernetes.io/name: reservation-api
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 1
-      maxSurge: 0
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: reservation-api
@@ -20,6 +20,7 @@ spec:
       labels:
         app.kubernetes.io/name: reservation-api
     spec:
+      terminationGracePeriodSeconds: 30
       containers:
         - name: reservation-api
           image: reservation-api:local
@@ -29,28 +30,42 @@ spec:
               containerPort: 8000
           env:
             - name: APP_VERSION
-              value: "1.7.0"
+              value: "1.7.1"
             - name: LOG_LEVEL
               value: "INFO"
             - name: HEALTH_LATENCY_MS
-              value: "1200"
+              value: "0"
             - name: UPSTREAM_DELAY_MS
-              value: "900"
+              value: "120"
             - name: UPSTREAM_TIMEOUT_MS
-              value: "800"
+              value: "1000"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 10
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
-            initialDelaySeconds: 2
-            periodSeconds: 5
-            timeoutSeconds: 1
-            failureThreshold: 1
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: http
-            initialDelaySeconds: 1
+            initialDelaySeconds: 3
             periodSeconds: 5
-            timeoutSeconds: 1
-            failureThreshold: 1
+            timeoutSeconds: 2
+            failureThreshold: 3
