@@ -1,0 +1,10 @@
+# Padrão Seazone de SAST (SRE-46 / Airbnb 10.2.8).
+name: SAST
+on: [pull_request]
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+jobs:
+  sast:
+    uses: seazone-tech/.github/.github/workflows/sast.yml@main
