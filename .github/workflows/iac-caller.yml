@@ -1,0 +1,23 @@
+# Padrão Seazone de scan de IaC (SRE-46). Motor: Trivy config scan.
+name: IaC Scan
+on:
+  pull_request:
+    # Só roda quando muda arquivo de infraestrutura. O GitHub cobra Actions em
+    # minutos inteiros por job, e a maioria dos PRs não toca IaC.
+    paths:
+      - '**/*.tf'
+      - '**/*.tfvars'
+      - '**/*.yaml'
+      - '**/*.yml'
+      - '**/Dockerfile'
+      - '**/Dockerfile.*'
+      - '**/docker-compose*.yml'
+      - '**/docker-compose*.yaml'
+      - '.github/workflows/iac-caller.yml'
+permissions:
+  contents: read
+  pull-requests: write   # reviewdog publica comentário inline
+  checks: write
+jobs:
+  iac:
+    uses: seazone-tech/.github/.github/workflows/iac-scan.yml@main
