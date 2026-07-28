@@ -1,6 +1,26 @@
 # Padrão Seazone de SAST (SRE-46 / Airbnb 10.2.8).
 name: SAST
-on: [pull_request]
+on:
+  pull_request:
+    # Filtro POSITIVO: só roda quando muda arquivo que uma regra pode casar.
+    # O GitHub cobra Actions em minutos inteiros por job, e 52% dos PRs da
+    # frota não tocam nenhuma destas extensões. A lista cobre exatamente as
+    # linguagens que as regras de pr-blocking declaram (python, javascript,
+    # typescript, go), verificado empiricamente.
+    # Invariante protegido por ci/check_pr_blocking_languages.py em sast-rules.
+    paths:
+      - '**/*.py'
+      - '**/*.pyi'
+      - '**/*.js'
+      - '**/*.jsx'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.mts'
+      - '**/*.cts'
+      - '**/*.go'
+      - '.github/workflows/sast-caller.yml'
 permissions:
   contents: read
   pull-requests: write
